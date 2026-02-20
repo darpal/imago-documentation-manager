@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Imago is an AI-powered documentation coach CLI tool (alpha v0.1.0). It manages Git-based documentation repositories and uses Claude AI to review, analyze, and improve technical documentation. Built with Python 3.10+ using Hatchling as the build system.
 
+## Important: Imago operates on external documentation repositories
+
+This repo is the **tool itself**, not the documentation it manages. Imago CLI commands (`imago gaps`, `imago analyze`, `imago review`, etc.) target documentation repositories located in the configured `repos_dir` (default: `~/local-coding/documentations`). Always pass a repository name from that directory when running imago commands, e.g.:
+
+```bash
+imago gaps imago-mvp-documentation
+imago analyze imago-mvp-documentation
+imago review imago-mvp-documentation path/to/doc.md
+```
+
+AI-powered commands (`gaps`, `review`, `chat`, `analyze`) require `ANTHROPIC_API_KEY` to be set via environment variable or `imago config set anthropic_api_key`.
+
 ## Development Commands
 
 ```bash
