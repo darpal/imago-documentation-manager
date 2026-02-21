@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from dataclasses import dataclass
+from urllib.parse import unquote
 from enum import Enum
 from typing import Optional
 
@@ -161,7 +162,7 @@ class DocumentValidator:
                 # Check internal file links
                 if not link_url.startswith("#"):
                     # Handle relative paths
-                    link_path = link_url.split("#")[0]  # Remove anchor
+                    link_path = unquote(link_url.split("#")[0])  # Remove anchor and decode %20 etc.
                     target_path = (file_path.parent / link_path).resolve()
 
                     if not target_path.exists():
