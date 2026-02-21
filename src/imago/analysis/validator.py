@@ -71,13 +71,35 @@ class DocumentValidator:
 
         rel_path = str(file_path.relative_to(self.repo_path))
         lines = content.split("\n")
+        code_block_lines = self._get_code_block_lines(lines)
 
         self._check_title(rel_path, lines)
-        self._check_headers(rel_path, lines)
-        self._check_links(rel_path, lines, file_path)
+        self._check_headers(rel_path, lines, code_block_lines)
+        self._check_links(rel_path, lines, file_path, code_block_lines)
         self._check_code_blocks(rel_path, lines)
-        self._check_empty_sections(rel_path, lines)
+        self._check_empty_sections(rel_path, lines, code_block_lines)
         self._check_trailing_whitespace(rel_path, lines)
+
+    @staticmethod
+    def _get_code_block_lines(lines: list[str]) -> set[int]:
+        """Return set of 1-indexed line numbers that are inside fenced code blocks."""
+        inside: set[int] = set()
+        in_block = False
+        fence_len = 0
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if not in_block:
+                match = re.match(r"^(`{3,})", stripped)
+                if match:
+                    in_block = True
+                    fence_len = len(match.group(1))
+                    inside.add(i)
+            else:
+                inside.add(i)
+                close_match = re.match(r"^(`{3,})\s*$", stripped)
+                if close_match and len(close_match.group(1)) >= fence_len:
+                    in_block = False
+        return inside
 
     def _check_title(self, file: str, lines: list[str]) -> None:
         """Check that file has a title (H1 header)."""
@@ -99,10 +121,13 @@ class DocumentValidator:
                 suggestion="Add a title with '# Your Title'"
             ))
 
-    def _check_headers(self, file: str, lines: list[str]) -> None:
+    def _check_headers(self, file: str, lines: list[str],
+                       code_block_lines: set[int]) -> None:
         """Check header hierarchy (no skipping levels)."""
         current_level = 0
         for i, line in enumerate(lines, 1):
+            if i in code_block_lines:
+                continue
             if line.startswith("#"):
                 # Count the header level
                 match = re.match(r"^(#+)\s", line)
@@ -118,11 +143,14 @@ class DocumentValidator:
                         ))
                     current_level = level
 
-    def _check_links(self, file: str, lines: list[str], file_path: Path) -> None:
+    def _check_links(self, file: str, lines: list[str], file_path: Path,
+                     code_block_lines: set[int]) -> None:
         """Check for broken internal links."""
         link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
 
         for i, line in enumerate(lines, 1):
+            if i in code_block_lines:
+                continue
             for match in link_pattern.finditer(line):
                 link_text, link_url = match.groups()
 
@@ -178,12 +206,15 @@ class DocumentValidator:
                 suggestion="Add closing ``` to the code block"
             ))
 
-    def _check_empty_sections(self, file: str, lines: list[str]) -> None:
+    def _check_empty_sections(self, file: str, lines: list[str],
+                              code_block_lines: set[int]) -> None:
         """Check for empty sections (headers with no content)."""
         header_line = None
         header_text = None
 
         for i, line in enumerate(lines, 1):
+            if i in code_block_lines:
+                continue
             stripped = line.strip()
             if stripped.startswith("#"):
                 # If we have a previous header with no content
